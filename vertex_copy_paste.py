@@ -6,16 +6,40 @@ bl_info = {
     "blender": (2, 80, 0),
     "category": "Mesh",
     "author": "KO-DCGI",
-    "version": (1, 0),
-    "description": "Copy and paste vertex coordinates",
+    "version": (1, 1),
+    "description": "Copy and paste multiple vertex coordinates across meshes while preserving strict selection order",
     "location": "View3D > Sidebar > Tool Tab",
 }
 
-# Store copied coordinates globally
-copied_coords = None
+# Store copied vertex coordinates in strict selection order
+copied_coords = []
+
+def get_selected_vertices(obj):
+    """Returns a list of selected vertex coordinates in selection order using select_history."""
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    
+    selected_verts = [ele for ele in reversed(bm.select_history) if isinstance(ele, bmesh.types.BMVert)]
+    return [v.co.copy() for v in selected_verts]
+
+def set_selected_vertices(obj, coords):
+    """Applies stored coordinates to selected vertices in exact selection order."""
+    bm = bmesh.from_edit_mesh(obj.data)
+    bm.verts.ensure_lookup_table()
+    
+    selected_verts = [ele for ele in reversed(bm.select_history) if isinstance(ele, bmesh.types.BMVert)]
+    
+    if len(selected_verts) != len(coords):
+        return False  # Mismatch in selection count
+    
+    for v, new_co in zip(selected_verts, coords):
+        v.co = new_co
+    
+    bmesh.update_edit_mesh(obj.data)
+    return True
 
 class CopyVertexCoordinates(bpy.types.Operator):
-    """Copy selected vertex coordinates"""
+    """Copy selected vertex coordinates in strict selection order"""
     bl_idname = "mesh.copy_vertex_coords"
     bl_label = "Copy Vertex Coords"
     bl_options = {'REGISTER', 'UNDO'}
@@ -24,19 +48,17 @@ class CopyVertexCoordinates(bpy.types.Operator):
         global copied_coords
         obj = context.active_object
         if obj and obj.type == 'MESH' and obj.mode == 'EDIT':
-            bm = bmesh.from_edit_mesh(obj.data)
-            selected_verts = [v for v in bm.verts if v.select]
-            if selected_verts:
-                copied_coords = selected_verts[0].co.copy()
-                self.report({'INFO'}, "Coordinates copied")
+            copied_coords = get_selected_vertices(obj)
+            if copied_coords:
+                self.report({'INFO'}, f"Copied {len(copied_coords)} vertices in strict order")
             else:
-                self.report({'WARNING'}, "No vertex selected")
+                self.report({'WARNING'}, "No vertices selected")
         else:
             self.report({'WARNING'}, "Not in Edit Mode or invalid object")
         return {'FINISHED'}
 
 class PasteVertexCoordinates(bpy.types.Operator):
-    """Paste copied vertex coordinates"""
+    """Paste copied vertex coordinates while preserving strict selection order"""
     bl_idname = "mesh.paste_vertex_coords"
     bl_label = "Paste Vertex Coords"
     bl_options = {'REGISTER', 'UNDO'}
@@ -45,14 +67,11 @@ class PasteVertexCoordinates(bpy.types.Operator):
         global copied_coords
         obj = context.active_object
         if copied_coords and obj and obj.type == 'MESH' and obj.mode == 'EDIT':
-            bm = bmesh.from_edit_mesh(obj.data)
-            selected_verts = [v for v in bm.verts if v.select]
-            if selected_verts:
-                selected_verts[0].co = copied_coords
-                bmesh.update_edit_mesh(obj.data)
-                self.report({'INFO'}, "Coordinates pasted")
+            success = set_selected_vertices(obj, copied_coords)
+            if success:
+                self.report({'INFO'}, f"Pasted {len(copied_coords)} vertices correctly in strict order")
             else:
-                self.report({'WARNING'}, "No vertex selected")
+                self.report({'WARNING'}, "Selection count mismatch – ensure you selected the same number of vertices")
         else:
             self.report({'WARNING'}, "No copied coordinates or invalid mode")
         return {'FINISHED'}
