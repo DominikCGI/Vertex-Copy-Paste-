@@ -8,5 +8,6 @@ How it works:
 2. Select an other vertex of the same or a different mesh. Click the "Paste" button.
 
 For multicopy: 
-Select mesh A. Vertex 1, Vertex 2, Vertex n... -> Copy 
+Select mesh A. Vertex 1, Vertex 2, Vertex n... -> Copy.
+
 Select mesh B. Vertex 1, Vertex 2, Vertex n... -> Paste
