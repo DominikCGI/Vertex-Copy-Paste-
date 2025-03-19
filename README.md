@@ -1,4 +1,4 @@
-# Vertex-Copy-Paste-
+# Vertex-Copy-Paste
 Copy and paste vertex coordinates
 
 This plugin will add a new tab under the "Tools" Section in Edit mode.
